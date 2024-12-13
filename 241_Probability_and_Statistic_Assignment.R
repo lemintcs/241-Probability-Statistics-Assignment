@@ -9,7 +9,7 @@ library(car)
 
 
 # read data from .csv file and choose suitable variable to analysis
-All_GPUs <- read.csv("C:\\Users\\Nhatminh\\Desktop\\BTL XSTK\\All_GPUs.csv")
+All_GPUs <- read.csv("D:/BTL_XSTK/All_GPUs.circ")
 
 # print first 5 line in console 
 head(All_GPUs, n = 5)
@@ -72,7 +72,7 @@ freq_na <- function(variable, var_name) {
 }
 
 # find outliners: 
-find_outliers <- function(data, variable) {
+  find_outliers <- function(data, variable) {
   # Calculate the first and third quartiles, and the IQR
   Q1 <- quantile(data[[variable]], 0.25, na.rm = TRUE)
   Q3 <- quantile(data[[variable]], 0.75, na.rm = TRUE)
@@ -354,56 +354,20 @@ head(new_GPUs2)
 #####################################################################################end preprocessing data ####################################################################################
 
 
-#########################################################################4: Descriptive statistic################################################################
-# Use lapply() to apply the summary() function to each variable
+#########################################################################4: bieu thi du lieu################################################################
+# Sử dụng lapply() để áp dụng hàm summary() cho mỗi biến
 custom_summary <- function(x) {
-  # Use the summary function to get basic parameters
+  # Dùng hàm summary để lấy các thông số cơ bản
   summary_stats <- summary(x)
-  # Calculate standard deviation (ignore NA values if present)
+  # Tính độ lệch chuẩn (bỏ qua giá trị NA nếu có)
   std_dev <- sd(x, na.rm = TRUE)
-  # Combine results from summary and standard deviation
+  # Kết hợp kết quả từ summary và độ lệch chuẩn
   c(summary_stats, Std_Dev = std_dev)
 }
 stat <- lapply(new_GPUs, custom_summary)
 
-# Print results
+# In kết quả
 print(stat)
-
-# Custom function to calculate and display summaries in the desired format
-generate_summary_table <- function(data) {
-  for (col_name in names(data)) {
-    cat("\n", col_name, ":\n", sep = "")
-    
-    # Check if the column is numeric
-    if (is.numeric(data[[col_name]])) {
-      # Calculate summary statistics
-      summary_stats <- summary(data[[col_name]])
-      std_dev <- sd(data[[col_name]], na.rm = TRUE)
-      
-      # Print the summary in the desired format
-      cat(
-        sprintf(
-          "  Min.   : %-10.3f  1st Qu. : %-10.3f  Median : %-10.3f\n",
-          summary_stats["Min."], summary_stats["1st Qu."], summary_stats["Median"]
-        )
-      )
-      cat(
-        sprintf(
-          "  Mean   : %-10.3f  3rd Qu. : %-10.3f  Max.   : %-10.3f\n",
-          summary_stats["Mean"], summary_stats["3rd Qu."], summary_stats["Max."]
-        )
-      )
-      cat(sprintf("  Std Dev: %-10.3f\n", std_dev))
-    } else {
-      # For non-numeric columns, print a message
-      cat("  Non-numeric column - summary not applicable.\n")
-    }
-  }
-}
-
-# Example of usage with your dataset
-generate_summary_table(new_GPUs)
-
 par(mfrow = c(1, 2))
 hist(new_GPUs$Memory_Speed,xlab = "Memory Speed",ylab = "Frequency",col = "lightblue",main = "Histogram of Memory Speed",xlim = c(0,2500))
 hist(new_GPUs2$Memory_Speed,xlab = "Memory Speed",ylab = "Frequency",col = "lightblue",main = "Histogram of log(Memory Speed)",xlim = c(4,8))
@@ -434,10 +398,10 @@ hist(new_GPUs$Process,xlab = "Process",ylab = "Frequency",col = "lightblue",main
 hist(new_GPUs2$Process,xlab = "Process",ylab = "Frequency",col = "lightblue",main = "Histogram of log(Process)",xlim = c(2,5))
 par(mfrow = c(1, 1))
 
-#Draw correlation chart
+#Vẽ biểu đồ correlation
 correlation_matrix <- cor(new_GPUs)
 
-# Draw correlation graph
+# Vẽ biểu đồ tương quan
 corrplot(correlation_matrix, method = "circle", 
          type = "full", order = "hclust",
          tl.col = "black", tl.srt = 45, 
@@ -449,12 +413,25 @@ corrplot(correlation_matrix, method = "circle",
 ###############################################################multiple linear regression############################################
 #######################################################data division and multicollinearity check################
 vif(lm(Memory_Speed~Memory+Core_Speed+Max_Power+Memory_Bandwidth+Process, data = new_GPUs2))
-set.seed(42)
-trainingRowIndex<-sample(1:nrow(new_GPUs2),0.8*nrow(new_GPUs2))
-trainingData<-new_GPUs2[trainingRowIndex,]
-testData<-new_GPUs2[-trainingRowIndex,]
-print(nrow(trainingData))
-print(nrow(testData))
+set.seed(42) 
+
+
+trainingRowIndex <- sample(1:nrow(new_GPUs2), 0.6 * nrow(new_GPUs2))
+remainingData <- new_GPUs2[-trainingRowIndex, ]
+
+validationRowIndex <- sample(1:nrow(remainingData), 0.5 * nrow(remainingData))
+
+
+trainingData <- new_GPUs2[trainingRowIndex, ] # 60% training
+validationData <- remainingData[validationRowIndex, ] # 20% validation
+testData <- remainingData[-validationRowIndex, ] # 20% test
+
+
+print(nrow(trainingData))   # trainingData's rows
+print(nrow(validationData)) # validationData's rows
+print(nrow(testData))       # testData's rows
+
+
 ###############################################################5: choose module###############################################
 cols=colnames(trainingData)
 yvar=trainingData[,("Memory_Speed")]
@@ -463,31 +440,30 @@ xvars <- trainingData[, !(colnames(trainingData) %in% "Memory_Speed"), drop = FA
 bma=bicreg(xvars,yvar,strict=F,OR=2)
 print(summary(bma))
 ##################################find weight######################
-m=lm(Memory_Speed~Memory+Core_Speed+Max_Power+Memory_Bandwidth+Process, data=trainingData)
-calc.relimp(m,type="lmg",rela=T, rank=T)
+#m=lm(Memory_Speed~Memory+Core_Speed+Max_Power+Memory_Bandwidth+Process, data=trainingData)
+#calc.relimp(m,type="lmg",rela=T, rank=T)
 #################################make training data and test data###############################
 
 ################################construct model###################################
 #tao mo hinh tu training data
 lmMod<-lm(Memory_Speed~Memory+Core_Speed+Max_Power+Memory_Bandwidth+Process, data=trainingData)
 #shapiro.test(residuals(lmMod))
-cPred<-predict(lmMod,testData)
+cPred<-predict(lmMod,validationData)
 cPred1<-predict(lmMod,trainingData)
 #mean square error tu mo hinh
 #mse<-mean(lmMod$residuals^2)
 #mean square error tu testData
-mse_test=mean((testData$Memory_Speed-cPred)^2)
+mse_test=mean((validationData$Memory_Speed-cPred)^2)
 mse_test1=mean((trainingData$Memory_Speed-cPred1)^2)
 
 #iN MSE
 #print(paste("mse cua mo hinh: ",mse))
-print(paste("TestData' s mse: ",mse_test))
+print(paste("validationData' s mse: ",mse_test))
 print(paste("trainingData' s mse: ",mse_test1))
 #############################find m1,m2,.. b#################################
 print(summary(lmMod))
 
 ############################Draw charts###################################
-# do thi bieu thi sai so hoi quy residuals va gia tri du bao fitted values
 par(mfrow =c(2,2))
 plot(lmMod)
 par(mfrow = c(1,1))
@@ -504,20 +480,22 @@ P<-lm(Memory_Speed~.,data=data_predict)
 summary(P)
 predict_Memory_Speed=predict(P)
 p=data.frame(predict_Memory_Speed,Memory_Speed)
-head(p,10)
+head(p,5)
 
-# du bao 
-new <- new_GPUs2[,c("Memory","Core_Speed","Max_Power","Memory_Bandwidth","Memory_Speed","Process")]
-result <- predict(lmMod, newdata = new, interval = "confidence")
-newDf <- data.frame(ifelse(abs(result[,"fit"] - new_GPUs2[,"Memory_Speed"]) >= 0.5,FALSE, TRUE))
-colnames(newDf) <- "Good predict"
-apply(newDf,2,mean)
+# prediction
+difference <- abs(predict_Memory_Speed - Memory_Speed) # Chênh lệch giữa dự đoán và thực tế
+within_threshold <- difference <= 0.5                  # So sánh chênh lệch với ngưỡng 0.5
+percentage_within_threshold <- mean(within_threshold) * 100 # Tính phần trăm
+
+# show results
+cat("Percentage of residuals being equal or smaller than 0.5:", percentage_within_threshold, "%\n")
 #############################Prediction##########################################################
-#du doan Memory_Speed khi Memory=24576MB, Core_Speed=2235MHz, Max_Power=450 Watts, Memory_Bandwidth=1000GB/sec, Process=8nm
-#tao dataframe
+#make prediction of Memory_Speed when Memory=24000MB, Core_Speed=2235MHz, Max_Power=450 Watts, Memory_Bandwidth=1000GB/sec, Process=8nm
+#make dataframe
 x2<-24000;x3<-2235;x4<-450;x5<-1000;x6<-8
 y1<-data.frame("Memory"=log(x2),"Core_Speed"=log(x3),"Max_Power"=log(x4),"Memory_Bandwidth"=log(x5),"Process"=log(x6))
 predict_X<-predict(lmMod,y1,interval="confidence")
 head(predict_X)
 print("Solution: ")
 print(exp(predict_X))
+
